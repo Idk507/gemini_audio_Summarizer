@@ -1,42 +1,53 @@
-import streamlit as st 
-import pydub 
-import google.generativeai as genai 
-from dotenv import load_dotenv 
-import tempfile 
+import streamlit as st
+from pydub import AudioSegment
+import tempfile
+import os
+import google.generativeai as genai
 
-genai.configure(api_key="AIzaSyCfX4WWP-THMPKeGutwdeCkkhstyWTr2kk")
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-def summarize_Audio(audio_file_path):
-    model = genai.GenerativeModel("model/gemini-1.5-pro-latest")
+genai.configure(api_key="**********************************")
+
+def summarize_audio(audio_file_path):
+    """Summarize the audio using Google's Generative API."""
+    model = genai.GenerativeModel("models/gemini-1.5-pro-latest")
     audio_file = genai.upload_file(path=audio_file_path)
-    response = model.generative_content(
+    response = model.generate_content(
         [
-            "Please summarize the following audio",
+            "Please summarize the following audio.",
             audio_file
         ]
     )
-    return response.text 
+    return response.text
 
-def save_upload_file(upload_file):
+def save_uploaded_file(uploaded_file):
+    """Save uploaded file to a temporary file and return the path."""
     try:
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
-            temp.write(upload_file.read())
-            return temp.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.' + uploaded_file.name.split('.')[-1]) as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            return tmp_file.name
     except Exception as e:
-        print(e)
+        st.error(f"Error handling uploaded file: {e}")
+        return None
 
-#streamlit 
-st.title("Audio Summarization")
+# Streamlit app interface
+st.title('Audio Summarization App')
 
-with st.expander("About the app"):
-    st.write("This app summarizes audio files using the Gemini AI model")
-    st.write("Made by Dhanushkumar")
+with st.expander("About this app"):
+    st.write("""
+        This app uses Google's generative AI to summarize audio files. 
+        Upload your audio file in WAV or MP3 format and get a concise summary of its content.
+    """)
 
-    audio_file = st.file_uploader("Upload an audio file", type=["mp3", "wav", "ogg"])
-    if audio_file:
-        st.audio(Audio_file, format="audio/wav")
-        if st.button("Summarize"):
-            file_path = save_upload_file(audio_file)
-            summary = summarize_Audio(file_path)
-            st.write(summary)
+audio_file = st.file_uploader("Upload Audio File", type=['wav', 'mp3'])
+if audio_file is not None:
+    audio_path = save_uploaded_file(audio_file)  # Save the uploaded file and get the path
+    st.audio(audio_path)
+
+    if st.button('Summarize Audio'):
+        with st.spinner('Summarizing...'):
+            summary_text = summarize_audio(audio_path)
+            st.info(summary_text)
